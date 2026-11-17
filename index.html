@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>График дежурств</title>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{color-scheme:light;--bg:#eef1f5;--sf:#fff;--ink:#1b2430;--mut:#5f6b7a;--ln:#d5dbe3;--ac:#1f5fbf;--acx:#fff;--A:#cfe3ff;--B:#ffe2a0;--O:#e3d4fb;--V:#cdeccf;--S:#fbd0d6;--W:#e4e7ec;--bad:#c0262d;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#12171e;--sf:#1b222c;--ink:#e6ebf2;--mut:#9aa6b6;--ln:#2e3846;--ac:#6ea4ff;--acx:#0d1520;--A:#24467a;--B:#7a5a12;--O:#503a7c;--V:#2b5a33;--S:#7a2e39;--W:#262d38;--bad:#ff7a80}}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 Onest,"Segoe UI",system-ui,sans-serif}
+main{max-width:1200px;margin:0 auto;padding:16px}
+h1{font-size:26px;margin:0 0 4px;letter-spacing:-.01em}
+h2{font-size:17px;margin:0 0 10px}
+.sub{color:var(--mut);margin:0 0 14px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.bar .sp{flex:1}
+button,input,select{font:inherit;color:var(--ink);background:var(--sf);border:1px solid var(--ln);border-radius:6px;padding:7px 11px}
+button{cursor:pointer}
+button.pri{background:var(--ac);color:var(--acx);border-color:var(--ac);font-weight:600}
+button:focus-visible,input:focus-visible,select:focus-visible,td:focus-visible{outline:2px solid var(--ac);outline-offset:1px}
+.mon{font-weight:700;min-width:170px;text-align:center;text-transform:capitalize}
+.card{background:var(--sf);border:1px solid var(--ln);border-radius:10px;padding:14px;margin-bottom:14px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:13px;margin-bottom:10px}
+.legend i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:5px;border:1px solid var(--ln)}
+.wrap{overflow-x:auto;border:1px solid var(--ln);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{border:1px solid var(--ln);padding:3px 2px;text-align:center;min-width:34px;white-space:nowrap}
+th{background:var(--bg);font-weight:600}
+th.off{color:var(--bad)}
+td.n,th.n{position:sticky;left:0;background:var(--sf);text-align:left;padding:5px 8px;min-width:150px;z-index:1;font-weight:600}
+th.n{background:var(--bg)}
+td.c{cursor:pointer;font-weight:600}
+td.A{background:var(--A)}td.B{background:var(--B)}td.O{background:var(--O)}td.V{background:var(--V)}td.S{background:var(--S)}td.W{background:var(--W);color:var(--mut)}
+td.fx{box-shadow:inset 0 0 0 2px var(--ac)}
+td.st{min-width:52px;color:var(--mut)}
+tr.chk td{font-size:11.5px;color:var(--mut)}
+td.bad{color:var(--bad);font-weight:700}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+.list{margin:0;padding:0;list-style:none}
+.list li{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--ln)}
+.list button{padding:2px 9px}
+.mut{color:var(--mut);font-size:13px}
+#menu{position:fixed;display:none;background:var(--sf);border:1px solid var(--ln);border-radius:8px;padding:4px;z-index:9;box-shadow:0 6px 24px #0003}
+#menu button{display:block;width:100%;text-align:left;border:0;padding:6px 12px}
+#menu button:hover{background:var(--bg)}
+details{margin-top:6px}summary{cursor:pointer;font-weight:600}
+.warn{color:var(--bad);font-size:13px;margin:8px 0 0}
+</style></head>
+<body><main>
+<h1>График дежурств</h1>
+<p class="sub">Смены 8:00–17:00 и 10:00–19:00 (по 2 человека), отгулы, отпуска, больничные. Работа по ТК РК: 40-часовая неделя, выходные и праздники отдыхают.</p>
+
+<div class="card">
+<div class="bar">
+<button id="prev" aria-label="Предыдущий месяц">‹</button><div class="mon" id="mon"></div><button id="next" aria-label="Следующий месяц">›</button>
+<span class="sp"></span>
+<button id="auto">Пересчитать вручную выбранное</button>
+<button id="exp" class="pri">Скачать в Excel</button>
+</div>
+<div class="legend" id="leg"></div>
+<div class="wrap"><table id="tb"></table></div>
+<p class="mut">Нажмите на ячейку, чтобы выбрать смену или отсутствие вручную. Ячейки с синей рамкой заданы вручную, остальные график ставит сам: две поздние смены (10–19) распределяются по очереди между свободными сотрудниками.</p>
+<div class="warn" id="warn"></div>
+</div>
+
+<div class="grid2">
+<div class="card"><h2>Сотрудники</h2>
+<div class="row"><input id="nm" placeholder="ФИО сотрудника" style="flex:1;min-width:160px"><button id="add" class="pri">Добавить</button></div>
+<div class="row"><label class="mut">Загрузить из Excel (ФИО в первом столбце):</label><input type="file" id="xl" accept=".xlsx,.xls,.csv"></div>
+<ul class="list" id="el"></ul></div>
+
+<div class="card"><h2>Отпуск, больничный, отгул</h2>
+<div class="row"><select id="ae"></select>
+<select id="at"><option value="V">Отпуск</option><option value="S">Больничный</option><option value="O">Отгул за отработанное время</option></select></div>
+<div class="row"><input type="date" id="af"><input type="date" id="ato"><button id="aadd" class="pri">Добавить</button></div>
+<ul class="list" id="al"></ul>
+<h2 style="margin-top:16px">Праздничные переносы</h2>
+<div class="row"><input type="date" id="hd"><button id="hadd">Добавить выходной день</button></div>
+<div id="hl" class="mut"></div></div>
+</div>
+
+<div class="card"><details><summary>Что учтено по трудовому законодательству РК</summary>
+<ul class="mut">
+<li>Пятидневная неделя, 40 часов: 8 часов в день, обеденный перерыв в рабочее время не входит (8–17 и 10–19 дают по 8 рабочих часов).</li>
+<li>Суббота, воскресенье и государственные праздники — выходные. Праздничные переносы Правительства добавьте датой выше.</li>
+<li>Ежегодный оплачиваемый отпуск — не менее 24 календарных дней.</li>
+<li>Больничный оформляется по листу временной нетрудоспособности, отгул — за ранее отработанное сверх нормы время (по согласованию с работником).</li>
+<li>График предупреждает, если в день одновременно больше одного человека в отгуле или не набирается две поздние смены. Это справочный инструмент, окончательные решения сверяйте с юристом или кадровой службой.</li>
+</ul></details></div>
+</main>
+<div id="menu"></div>
+
+<script>
+const T={A:'8–17',B:'10–19',O:'Отгул',V:'Отпуск',S:'Больн.',W:'Вых.'};
+const FULL={A:'Смена 8–17',B:'Смена 10–19',O:'Отгул',V:'Отпуск',S:'Больничный',W:'Выходной'};
+const FIX=['01-01','01-02','01-07','03-08','03-21','03-22','03-23','05-01','05-07','05-09','07-06','08-30','10-25','12-16','12-17'];
+const KEY='grafik-v1';
+let S={emps:[],abs:[],ov:{},hol:['2026-05-27']};
+try{const r=localStorage.getItem(KEY);if(r)S=JSON.parse(r)}catch(e){}
+if(!S.emps.length)S.emps=[1,2,3,4,5,6,7].map(i=>({id:'e'+i,name:'Специалист '+i}));
+const now=new Date();let Y=now.getFullYear(),M=now.getMonth();
+const $=id=>document.getElementById(id);
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const uid=()=>'i'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const p2=n=>String(n).padStart(2,'0');
+const ds=(y,m,d)=>y+'-'+p2(m+1)+'-'+p2(d);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const isOff=(y,m,d)=>{const w=new Date(y,m,d).getDay();return w==0||w==6||FIX.includes(p2(m+1)+'-'+p2(d))||S.hol.includes(ds(y,m,d))};
+let RES={};
+
+function compute(){
+ const n=new Date(Y,M+1,0).getDate(),bc={};S.emps.forEach(e=>bc[e.id]=0);RES={};S.emps.forEach(e=>RES[e.id]={});
+ for(let d=1;d<=n;d++){
+  const date=ds(Y,M,d),off=isOff(Y,M,d),free=[];let fb=0;
+  S.emps.forEach((e,i)=>{
+   let c=S.ov[e.id+'|'+date],fx=!!c;
+   if(!c){if(off)c='W';else{const a=S.abs.find(a=>a.e==e.id&&a.from<=date&&date<=a.to);if(a)c=a.t}}
+   if(c){RES[e.id][d]={c,fx};if(c=='B'){fb++;bc[e.id]++}}else free.push({e,i});
+  });
+  const need=Math.max(0,2-fb);
+  free.sort((a,b)=>bc[a.e.id]-bc[b.e.id]||((a.i+d)%S.emps.length)-((b.i+d)%S.emps.length));
+  free.forEach((f,k)=>{const c=k<need?'B':'A';if(c=='B')bc[f.e.id]++;RES[f.e.id][d]={c,fx:false}});
+ }
+}
+
+function render(){
+ compute();
+ const n=new Date(Y,M+1,0).getDate(),wd=['вс','пн','вт','ср','чт','пт','сб'];
+ $('mon').textContent=new Date(Y,M,1).toLocaleDateString('ru',{month:'long',year:'numeric'});
+ $('leg').innerHTML=Object.keys(T).map(k=>`<span><i style="background:var(--${k})"></i>${FULL[k]}</span>`).join('');
+ let h='<tr><th class="n">Сотрудник</th>';
+ for(let d=1;d<=n;d++)h+=`<th class="${isOff(Y,M,d)?'off':''}">${d}<br>${wd[new Date(Y,M,d).getDay()]}</th>`;
+ h+='<th>Дней</th><th>Часов</th><th>Поздн.</th><th>Отгул</th><th>Отпуск</th><th>Больн.</th></tr>';
+ let norm=0;for(let d=1;d<=n;d++)if(!isOff(Y,M,d))norm++;
+ S.emps.forEach(e=>{
+  const st={A:0,B:0,O:0,V:0,S:0};
+  h+=`<tr><td class="n">${esc(e.name)}</td>`;
+  for(let d=1;d<=n;d++){const r=RES[e.id][d];if(st[r.c]!==undefined&&!(isOff(Y,M,d)&&r.c!='A'&&r.c!='B'))st[r.c]++;
+   h+=`<td class="c ${r.c} ${r.fx?'fx':''}" tabindex="0" data-e="${e.id}" data-d="${d}">${T[r.c]}</td>`}
+  h+=`<td class="st">${st.A+st.B}</td><td class="st">${(st.A+st.B)*8}</td><td class="st">${st.B}</td><td class="st">${st.O}</td><td class="st">${st.V}</td><td class="st">${st.S}</td></tr>`;
+ });
+ const warns=[];let r1='<tr class="chk"><td class="n">8–17 / 10–19 / отсутств.</td>';
+ for(let d=1;d<=n;d++){
+  let a=0,b=0,x=0,o=0;S.emps.forEach(e=>{const c=RES[e.id][d].c;if(c=='A')a++;else if(c=='B')b++;else if(c!='W'||!isOff(Y,M,d)){x++;if(c=='O')o++}});
+  const off=isOff(Y,M,d),bad=!off&&(b<2||o>1);
+  if(!off&&b<2)warns.push(d+': меньше двух человек на смене 10–19');
+  if(o>1)warns.push(d+': в отгуле больше одного человека');
+  r1+=`<td class="${bad?'bad':''}">${off?'':a+'/'+b+'/'+x}</td>`;
+ }
+ $('tb').innerHTML=h+r1+'<td colspan="6"></td></tr>';
+ $('warn').textContent=warns.length?'Внимание, '+new Date(Y,M,1).toLocaleDateString('ru',{month:'long'})+': '+warns.join('; '):'';
+ $('el').innerHTML=S.emps.map(e=>`<li><span>${esc(e.name)}</span><button data-del="${e.id}" aria-label="Удалить ${esc(e.name)}">Удалить</button></li>`).join('')||'<li class="mut">Список пуст. Добавьте сотрудников.</li>';
+ const sel=$('ae').value;$('ae').innerHTML=S.emps.map(e=>`<option value="${e.id}">${esc(e.name)}</option>`).join('');if(sel)$('ae').value=sel;
+ const nm=id=>(S.emps.find(e=>e.id==id)||{}).name||'';
+ $('al').innerHTML=S.abs.map(a=>{const days=Math.round((new Date(a.to)-new Date(a.from))/864e5)+1;
+  return `<li><span>${esc(nm(a.e))}: ${FULL[a.t]}, ${a.from} — ${a.to} (${days} кал. дн.)</span><button data-da="${a.id}" aria-label="Удалить">×</button></li>`}).join('')||'<li class="mut">Отсутствий пока нет.</li>';
+ $('hl').innerHTML=S.hol.map(h=>`${h} <button data-dh="${h}" aria-label="Удалить дату">×</button>`).join(' &nbsp; ')||'Нет добавленных дат.';
+}
+
+const menu=$('menu');
+document.addEventListener('click',ev=>{
+ const t=ev.target;
+ if(t.closest('#menu')){const b=t.closest('button');if(!b)return;const k=menu.dataset.k;
+  if(b.dataset.v=='')delete S.ov[k];else S.ov[k]=b.dataset.v;menu.style.display='none';save();render();return}
+ menu.style.display='none';
+ if(t.classList.contains('c')){
+  menu.dataset.k=t.dataset.e+'|'+ds(Y,M,+t.dataset.d);
+  menu.innerHTML='<button data-v="">Автоматически</button>'+Object.keys(T).map(k=>`<button data-v="${k}">${FULL[k]}</button>`).join('');
+  menu.style.display='block';const r=t.getBoundingClientRect();
+  menu.style.left=Math.min(r.left,innerWidth-menu.offsetWidth-8)+'px';menu.style.top=Math.min(r.bottom,innerHeight-menu.offsetHeight-8)+'px';return}
+ if(t.dataset.del){if(confirm('Удалить сотрудника и его отсутствия?')){const id=t.dataset.del;S.emps=S.emps.filter(e=>e.id!=id);S.abs=S.abs.filter(a=>a.e!=id);Object.keys(S.ov).forEach(k=>{if(k.startsWith(id+'|'))delete S.ov[k]});save();render()}}
+ if(t.dataset.da){S.abs=S.abs.filter(a=>a.id!=t.dataset.da);save();render()}
+ if(t.dataset.dh){S.hol=S.hol.filter(h=>h!=t.dataset.dh);save();render()}
+});
+document.addEventListener('keydown',ev=>{if(ev.key=='Enter'&&ev.target.classList.contains('c'))ev.target.click();if(ev.key=='Escape')menu.style.display='none'});
+$('prev').onclick=()=>{M--;if(M<0){M=11;Y--}render()};
+$('next').onclick=()=>{M++;if(M>11){M=0;Y++}render()};
+$('auto').onclick=()=>{if(confirm('Сбросить все ручные правки за '+$('mon').textContent+'?')){const p=ds(Y,M,1).slice(0,7);Object.keys(S.ov).forEach(k=>{if(k.split('|')[1].startsWith(p))delete S.ov[k]});save();render()}};
+function addEmp(){const v=$('nm').value.trim();if(!v)return;S.emps.push({id:uid(),name:v});$('nm').value='';save();render()}
+$('add').onclick=addEmp;$('nm').onkeydown=e=>{if(e.key=='Enter')addEmp()};
+$('aadd').onclick=()=>{const e=$('ae').value,f=$('af').value,t=$('ato').value||f;
+ if(!e||!f){alert('Выберите сотрудника и дату начала');return}
+ if(t<f){alert('Дата окончания раньше даты начала');return}
+ S.abs.push({id:uid(),e,t:$('at').value,from:f,to:t});save();render()};
+$('hadd').onclick=()=>{const v=$('hd').value;if(v&&!S.hol.includes(v)){S.hol.push(v);S.hol.sort();save();render()}};
+$('xl').onchange=async ev=>{
+ const f=ev.target.files[0];if(!f)return;
+ try{const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
+  const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1});
+  let added=0;rows.forEach((r,i)=>{const v=String(r[0]||'').trim();
+   if(!v||(i==0&&/^(фио|имя|сотрудник|ф\.и\.о|name)/i.test(v)))return;
+   if(!S.emps.some(e=>e.name.toLowerCase()==v.toLowerCase())){S.emps.push({id:uid(),name:v});added++}});
+  save();render();alert('Добавлено сотрудников: '+added)}catch(e){alert('Не удалось прочитать файл. Нужен .xlsx, .xls или .csv, ФИО в первом столбце.')}
+ ev.target.value=''};
+$('exp').onclick=()=>{
+ const n=new Date(Y,M+1,0).getDate(),hd=['Сотрудник'];for(let d=1;d<=n;d++)hd.push(d);hd.push('Дней','Часов');
+ const rows=[hd];S.emps.forEach(e=>{const r=[e.name];let c=0;for(let d=1;d<=n;d++){const k=RES[e.id][d].c;r.push(T[k]);if(k=='A'||k=='B')c++}r.push(c,c*8);rows.push(r)});
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(rows),'График');
+ XLSX.writeFile(wb,'grafik-'+Y+'-'+p2(M+1)+'.xlsx')};
+render();
+</script></body></html>
